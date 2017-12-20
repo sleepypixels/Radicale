@@ -22,14 +22,18 @@ Radicale WSGI file (mod_wsgi and uWSGI compliant).
 """
 
 import os
-from radicale import Application, config, log
+from radicale import Application as _application, config, log
 
+def application(environ, start_response):
+    config_paths = []
+    if environ["RADICALE_CONFIG"]:
+        config_paths.append(environ["RADICALE_CONFIG"])
+    if os.environ.get("RADICALE_CONFIG"):
+        config_paths.append(os.environ["RADICALE_CONFIG"])
+    configuration = config.load(config_paths, ignore_missing_paths=False)
+    filename = os.path.expanduser(configuration.get("logging", "config"))
+    debug = configuration.getboolean("logging", "debug")
+    logger = log.start("radicale", filename, debug)
+    request_handler = _application(configuration, logger)
+    return request_handler(environ, start_response)
 
-config_paths = []
-if os.environ.get("RADICALE_CONFIG"):
-    config_paths.append(os.environ["RADICALE_CONFIG"])
-configuration = config.load(config_paths, ignore_missing_paths=False)
-filename = os.path.expanduser(configuration.get("logging", "config"))
-debug = configuration.getboolean("logging", "debug")
-logger = log.start("radicale", filename, debug)
-application = Application(configuration, logger)
